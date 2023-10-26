@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+            background-color: aliceblue;
+            width: 500px;
+            height: 705px;
+        }
+        .ticket {
+            border: 2px solid #333;
+            padding: 20px;
+            max-width: 400px;
+            margin: auto;
+        }
+        .header {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .info {
+            margin-top: 10px;
+        }
+        .name_hospital {
+            font-size: 13px;
+        }
+        .contact-info {
+            margin-top: 20px;
+            font-style: italic;
+        }
+    </style>
+    <title>Талон</title>
+</head>
+<body>
+    <div class="ticket">
+        <div class="info name_hospital">
+        <p>Поликлинника: ГБУЗ "Районная больница г. Касли"</p>
+        <p>Отделение: {{ otdelenie }}</p>
+        </div>
+        <br>
+        <div class="header">Талон №{{ number }}</div>
+        <br>
+        <div class="info">
+            <p>ФИО: {{ name }}</p>
+            <p>Дата рождения: {{ date }} ({{ year }})</p>
+            <br>
+            <br>
+            <p>Специалист: {{doctor[0]}}</p>
+            <p>Врач: {{ doctor[1] }}</p>
+            <p>Номер кабинета: {{ doctor[-1] }}</p>
+            <p>Время записи: {{ date_a }}</p>
+        </div>
+         <br><br><br><br>
+        <div class="contact-info">
+            <p>Контактная информация:</p>
+            <p>Адрес: 456830, Челябинская область г. Касли, ул. Коммуны, 65</p>
+            <p>Телефон: +7(35149) 2-25-03</p>
+        </div>
+    </div>
+</body>
+</html>
