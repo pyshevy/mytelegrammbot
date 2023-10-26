@@ -45,7 +45,7 @@ async def food_chosen(call_data: CallbackQuery, state: FSMContext):
     if call_data.data == 'writing':
         await call_data.message.edit_text('Выберите отделение', reply_markup=LIST_HOSPITAL)
         await state.set_state(OrderFood.waiting_otdelenie)
-        await state.update_data(type=call_data.data)
+        await state.update_data(type=call_data.data, id=call_data.from_user.id)
         await call_data.answer()
 
     elif call_data.data == 'info':
