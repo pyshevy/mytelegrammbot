@@ -1,5 +1,5 @@
-__all__ = ['router_test']
+__all__ = ['router']
 
-from .commands import router_test
+from .commands import router
 # from .inline import router
 

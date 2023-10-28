@@ -1,11 +1,13 @@
-__all__ = ['router_test']
+__all__ = ['router']
+
+from aiogram import F
 
 from .start import start
-from .test import router as router_test
+from .test import router
 
 
 
 
 
 # ---------------------------------------* Register User Command *---------------------------------------#
-# router.message.register(start, Command(commands=['start']))
+# router.message.register(start, F.data == 'hello')

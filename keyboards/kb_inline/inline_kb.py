@@ -67,6 +67,7 @@ START_MENU = InlineKeyboardMarkup(
     inline_keyboard=[
         [
             InlineKeyboardButton(text="Запись на прием", callback_data="writing"),
+            InlineKeyboardButton(text="Мои записи", callback_data="my_app"),
             InlineKeyboardButton(text="Информация о больнице", callback_data="info"),
         ]
     ],
@@ -110,6 +111,20 @@ ERROR_KB = InlineKeyboardMarkup(
         ],
         [
             InlineKeyboardButton(text="🧳В меню🧳", callback_data="menu"),
+        ],
+    ],
+)
+
+INPUT_APP = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(text="⬅️Выбор записи⬅️", callback_data='menu_app'),
+        ],
+        [
+            InlineKeyboardButton(text="📄Талон📄", callback_data='get_talon'),
+        ],
+        [
+            InlineKeyboardButton(text="🧳В меню🧳", callback_data="menu_app_2"),
         ],
     ],
 )

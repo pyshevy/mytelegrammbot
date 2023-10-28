@@ -49,8 +49,27 @@ async def get_user_appointments(id: Union[int, str]) -> list[tuple]:
 
     return returned_data
 
+async def get_short_info_appointments(id: Union[int, str]) -> list[tuple]:
+    returned_data = []
+    async with aiosqlite.connect('database.db') as db:
+        async with db.execute("""SELECT DATE_WRITTING, ID_APPOINTMENT date FROM users WHERE id = ?""", [id]) as cursor:
+            async for row in cursor:
+                returned_data.append(row)
 
-# print(asyncio.run(get_user_appointments(1234)))
+    return returned_data
+
+# print(asyncio.run(get_short_info_appointments(1158687926)))
+
+async def get_info_appointments(id_app: Union[str, int]) -> list:
+    async with aiosqlite.connect('database.db') as db:
+        async with db.execute("""SELECT * FROM users WHERE ID_APPOINTMENT = ?""", [id_app]) as cursor:
+            async for row in cursor:
+                returned_data = row
+
+    return returned_data
+
+
+# print(asyncio.run(get_info_appointments(292284)))
 
 async def get_user_names(id: Union[int, str]) -> list[tuple]:
     returned_data = []
@@ -62,7 +81,7 @@ async def get_user_names(id: Union[int, str]) -> list[tuple]:
 
     return returned_data
 
-# print(asyncio.run(get_user_names(1234)))
+# print(asyncio.run(get_user_names(1158687926)))
 
 
 async def delete_user_appointment(id_appointment: Union[int, str], id: Union[str, int]) -> None:
