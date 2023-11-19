@@ -1,13 +1,16 @@
-__all__ = ['router']
+__all__ = ['router', 'router_']
 
-from aiogram import F
+from aiogram import F, Router
 
 from .start import start
-from .test import router
+from .test import router, info_doctors
+from settings.states import States_class
+
+router_ = Router()
 
 
 
 
 
 # ---------------------------------------* Register User Command *---------------------------------------#
-# router.message.register(start, F.data == 'hello')
+# router_.callback_query.register(info_doctors, F.data == 'info_doctors', States_class.waiting_type)

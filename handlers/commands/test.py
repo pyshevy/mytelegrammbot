@@ -1,60 +1,85 @@
 import os
 import random
+from contextlib import suppress
 
-from aiogram import Router
+from aiogram import Router, F
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
+from aiogram.filters.callback_data import CallbackData
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, ErrorEvent, InlineKeyboardButton
+# from aiogram.fsm.state import StatesGroup, State
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, ErrorEvent, InlineKeyboardButton, \
+    InputMediaPhoto
 from aiogram.types import FSInputFile
 
 from config import INFO
-from keyboards.kb_inline.inline_kb import LIST_HOSPITAL, EXIT, START_MENU, LIST_DOCTOR_BIG, CONF, \
-    LIST_DOCTOR_KIDS, EXIT_for_conf, ERROR_KB, INPUT_APP
+from keyboards.kb_inline.inline_kb import LIST_HOSPITAL, EXIT, start_menu, LIST_DOCTOR_BIG, CONF, \
+    LIST_DOCTOR_KIDS, EXIT_for_conf, ERROR_KB, INPUT_APP, paginator, Pagination
 from pdfs.states import create_pdf
 from settings.get_kb import create_kb, get_kb_with_url, get_kb_appointments, get_kb_with_names
 from config import OTDELENIE_DICT, DOCTORS_DICT
 from settings.normalised_data import normalizerd_date
 from database import create_user, get_info_appointments, get_user_names
-
-
-class OrderFood(StatesGroup):
-    waiting_type = State()
-    waiting_info = State()
-    waiting_hospital = State()
-    waiting_otdelenie = State()
-    waiting_doctor = State()
-    waiting_time = State()
-    waiting_name = State()
-    waiting_date = State()
-    waiting_good_date = State()
-    waiting_confirmation = State()
-    waiting_admin = State()
-    waiting_id_app = State()
-    waiting_id_app_2 = State()
+from settings.states import States_class
 
 router = Router()
 
+infa = [
+    ['Глава КМР', 'pdfs/makaka.jpg'],
+    ['Кот', 'pdfs/cat.jpg'],
+    ['Собака', 'pdfs/dog.jpg']
+]
 
 @router.message(Command("start"))
-async def cmd_food(message: Message, state: FSMContext):
-    await message.answer(text=f'Здравствуйте, {message.from_user.full_name}! Выберите нужный пункт из меню ниже', reply_markup=START_MENU)
+async def hello(message: Message, state: FSMContext):
+    await message.answer(text=f'Здравствуйте, {message.from_user.full_name}! Выберите нужный пункт из меню ниже', reply_markup=start_menu())
     # Устанавливаем пользователю состояние "выбирает название"
-    await state.set_state(OrderFood.waiting_type)
+    await state.set_state(States_class.waiting_type)
+
+@router.callback_query(Pagination.filter(F.action.in_(['prev', 'next', 'close'])))
+async def pag_hadler(call: CallbackQuery, callback_data: Pagination, state: FSMContext):
+    page_num = int(callback_data.page)
+    page = page_num - 1 if page_num > 0 else 0
+    print(page_num)
+    print(page)
+    print(callback_data.action)
+
+    if callback_data.action == 'next':
+        page = page_num + 1 if page_num < (len(infa) - 1) else page_num
+
+    elif callback_data.action == 'close':
+        await state.clear()
+        await call.message.delete()
+        await call.message.answer(text=f'Выберите нужный пункт из меню ниже', reply_markup=start_menu())
+        await state.set_state(States_class.waiting_type)
 
 
-@router.callback_query(OrderFood.waiting_type)
-async def food_chosen(call_data: CallbackQuery, state: FSMContext):
+    with suppress(TelegramBadRequest):
+        photo = FSInputFile(infa[page][1])
+        markup = paginator(page=page)
+        print(2, page)
+        # media = I
+        # await call.message.delete()
+
+        await call.message.edit_media(
+            media=InputMediaPhoto(media=FSInputFile(infa[page][1]), caption=infa[page][0]),
+            reply_markup=markup
+        )
+
+    await call.answer()
+
+@router.callback_query(States_class.waiting_type)
+async def type_choosen(call_data: CallbackQuery, state: FSMContext):
     if call_data.data == 'writing':
         await call_data.message.edit_text('Выберите отделение', reply_markup=LIST_HOSPITAL)
-        await state.set_state(OrderFood.waiting_otdelenie)
+        await state.set_state(States_class.waiting_otdelenie)
         await state.update_data(type=call_data.data, id=call_data.from_user.id)
         await call_data.answer()
 
     elif call_data.data == 'info':
         await call_data.message.edit_text(INFO, reply_markup=EXIT)
         await state.clear()
-        await state.set_state(OrderFood.waiting_info)
+        await state.set_state(States_class.waiting_info)
 
     elif call_data.data == 'my_app':
         kb = await get_kb_appointments(id=call_data.from_user.id)
@@ -62,17 +87,32 @@ async def food_chosen(call_data: CallbackQuery, state: FSMContext):
         if len(kb) > 1:
             await call_data.message.edit_text('Выберите вашу запись и нажмите на нее для получения дополнительной информации', reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
             await state.clear()
-            await state.set_state(OrderFood.waiting_id_app)
+            await state.set_state(States_class.waiting_id_app)
 
         else:
             await call_data.answer('Вы не записывались к нам ранее с этого аккаунта!')
 
-@router.callback_query(OrderFood.waiting_id_app)
+    elif call_data.data == 'info_doctors':
+        photo = FSInputFile(infa[0][1])
+
+        await call_data.message.delete()
+        await call_data.message.answer_photo(
+            caption=f'<b>{infa[0][0]}</b>',
+            photo=photo,
+            reply_markup=paginator()
+        )
+
+
+async def info_doctors(call_data: CallbackQuery, state: FSMContext):
+    ...
+
+
+@router.callback_query(States_class.waiting_id_app)
 async def food_cho_incorrectsaly(call_data: CallbackQuery, state: FSMContext):
     if call_data.data == 'go_menuu':
         await state.clear()
-        await call_data.message.edit_text(text=f'Выберите нужный пункт из меню ниже', reply_markup=START_MENU)
-        await state.set_state(OrderFood.waiting_type)
+        await call_data.message.edit_text(text=f'Выберите нужный пункт из меню ниже', reply_markup=start_menu())
+        await state.set_state(States_class.waiting_type)
 
     else:
         info = await get_info_appointments(id_app=call_data.data)
@@ -89,11 +129,11 @@ async def food_cho_incorrectsaly(call_data: CallbackQuery, state: FSMContext):
 Номер записи: {info[9]}\n
     """, reply_markup=INPUT_APP)
         await state.update_data(id_app=call_data.data)
-        await state.set_state(OrderFood.waiting_id_app_2)
+        await state.set_state(States_class.waiting_id_app_2)
         await call_data.answer()
 
 
-@router.callback_query(OrderFood.waiting_id_app_2)
+@router.callback_query(States_class.waiting_id_app_2)
 async def food_cho_incorrectly(call_data: CallbackQuery, state: FSMContext):
     if call_data.data == 'menu_app':
         kb = await get_kb_appointments(id=call_data.from_user.id)
@@ -103,12 +143,12 @@ async def food_cho_incorrectly(call_data: CallbackQuery, state: FSMContext):
                 'Выберите вашу запись и нажмите на нее для получения дополнительной информации',
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
             await state.clear()
-            await state.set_state(OrderFood.waiting_id_app)
+            await state.set_state(States_class.waiting_id_app)
 
     elif call_data.data == 'menu_app_2':
         await state.clear()
-        await call_data.message.edit_text(text=f'Выберите нужный пункт из меню ниже', reply_markup=START_MENU)
-        await state.set_state(OrderFood.waiting_type)
+        await call_data.message.edit_text(text=f'Выберите нужный пункт из меню ниже', reply_markup=start_menu())
+        await state.set_state(States_class.waiting_type)
 
     elif call_data.data == 'get_talon':
         user_data = await state.get_data()
@@ -122,18 +162,18 @@ async def food_cho_incorrectly(call_data: CallbackQuery, state: FSMContext):
                                              caption=f'Ваш талон прикреплен к сообщению!',
                                              reply_markup=EXIT_for_conf)
         await call_data.answer()
-        await state.set_state(OrderFood.waiting_confirmation)
+        await state.set_state(States_class.waiting_confirmation)
         os.remove(filename)
 
-@router.callback_query(OrderFood.waiting_info)
+@router.callback_query(States_class.waiting_info)
 async def food_cho_incorrectly(call_data: CallbackQuery, state: FSMContext):
     print(call_data.data)
     if call_data.data == 'menu':
         await state.clear()
-        await call_data.message.edit_text(text=f'Выберите нужный пункт из меню ниже', reply_markup=START_MENU)
-        await state.set_state(OrderFood.waiting_type)
+        await call_data.message.edit_text(text=f'Выберите нужный пункт из меню ниже', reply_markup=start_menu())
+        await state.set_state(States_class.waiting_type)
 
-@router.callback_query(OrderFood.waiting_otdelenie)
+@router.callback_query(States_class.waiting_otdelenie)
 async def food_chosen_incorrectly(call_data: CallbackQuery, state: FSMContext):
     if call_data.data in ['big', 'kids']:
         if call_data.data == 'big':
@@ -144,19 +184,19 @@ async def food_chosen_incorrectly(call_data: CallbackQuery, state: FSMContext):
                                               reply_markup=LIST_DOCTOR_KIDS)
 
         await state.update_data(otdelenie=OTDELENIE_DICT[call_data.data])
-        await state.set_state(OrderFood.waiting_doctor)
+        await state.set_state(States_class.waiting_doctor)
     elif call_data.data == 'menu':
         await state.clear()
-        await call_data.message.edit_text(text=f'Выберите нужный пункт из меню ниже', reply_markup=START_MENU)
-        await state.set_state(OrderFood.waiting_type)
+        await call_data.message.edit_text(text=f'Выберите нужный пункт из меню ниже', reply_markup=start_menu())
+        await state.set_state(States_class.waiting_type)
 
 
-@router.callback_query(OrderFood.waiting_doctor)
+@router.callback_query(States_class.waiting_doctor)
 async def food_size_chosen(call_data: CallbackQuery, state: FSMContext):
 
     if call_data.data == 'input_hospital':
         await call_data.message.edit_text('Выберите отделение', reply_markup=LIST_HOSPITAL)
-        await state.set_state(OrderFood.waiting_otdelenie)
+        await state.set_state(States_class.waiting_otdelenie)
         await state.update_data(type=call_data.data)
         await call_data.answer()
     else:
@@ -168,14 +208,14 @@ async def food_size_chosen(call_data: CallbackQuery, state: FSMContext):
         elif len(kb) > 2:
             await call_data.message.edit_text(f'Вы выбрали: {DOCTORS_DICT[call_data.data][0]}.\nВаш врач: {DOCTORS_DICT[call_data.data][1]}\nКабинет: {DOCTORS_DICT[call_data.data][-1]}\n\nТеперь введите имя и дату рождения (Укажите в виде Имя Фамилия Отчество ДД.ММ.ГГГГ)\n\nИли выберите из ранее введенных', reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
         await state.update_data(doctor=DOCTORS_DICT[call_data.data])
-        await state.set_state(OrderFood.waiting_name)
+        await state.set_state(States_class.waiting_name)
 
-@router.callback_query(OrderFood.waiting_name)
+@router.callback_query(States_class.waiting_name)
 async def go_menu(call_data: CallbackQuery, state: FSMContext):
     if call_data.data == 'menu':
         await state.clear()
-        await call_data.message.edit_text(text=f'Выберите нужный пункт из меню ниже', reply_markup=START_MENU)
-        await state.set_state(OrderFood.waiting_type)
+        await call_data.message.edit_text(text=f'Выберите нужный пункт из меню ниже', reply_markup=start_menu())
+        await state.set_state(States_class.waiting_type)
 
     elif call_data.data == ' ':
         await call_data.answer()
@@ -193,10 +233,10 @@ async def go_menu(call_data: CallbackQuery, state: FSMContext):
             f'Ваше отделение: {user_data["otdelenie"]}\nВаш врач: {user_data["doctor"][1]}\nКабинет: {user_data["doctor"][-1]}\n\nВаше ФИО: {name}\nВаша дата рождения: {date} ({new_data["year"]})\n\nВрач принимает {user_data["doctor"][2]}, выберите доступное окно',
             reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
 
-        await state.set_state(OrderFood.waiting_date)
+        await state.set_state(States_class.waiting_date)
         await call_data.answer()
 
-@router.message(OrderFood.waiting_name)
+@router.message(States_class.waiting_name)
 async def get_name(msg: Message, state: FSMContext):
     name = ' '.join(msg.text.split(' ')[:-1])
     date = msg.text.split(' ')[-1]
@@ -213,15 +253,15 @@ async def get_name(msg: Message, state: FSMContext):
         ###---------------------------###
         await msg.bot.delete_message(chat_id=msg.chat.id, message_id=msg.message_id)
         await msg.answer(f'Ваше отделение: {user_data["otdelenie"]}\nВаш врач: {user_data["doctor"][1]}\nКабинет: {user_data["doctor"][-1]}\n\nВаше ФИО: {name}\nВаша дата рождения: {date} ({new_data["year"]})\n\nВрач принимает {user_data["doctor"][2]}, выберите доступное окно', reply_markup= InlineKeyboardMarkup(inline_keyboard=kb))
-        await state.set_state(OrderFood.waiting_date)
+        await state.set_state(States_class.waiting_date)
     else:
         # await msg.bot.delete_message(chat_id=msg.chat.id, message_id=msg.message_id-1)
         await state.update_data(name=name)
         await msg.bot.edit_message_text(chat_id=msg.chat.id, text=f'Вы ввели неверную дату рождения! Введите еще раз (формат ДД.ММ.ГГГГ). При повторном неверном вводе Вы отправитесь в меню!\n<b>Введите только дату рождения!</b>', reply_markup=EXIT, message_id=msg.message_id-1, )
         await msg.bot.delete_message(chat_id=msg.chat.id, message_id=msg.message_id)
-        await state.set_state(OrderFood.waiting_good_date)
+        await state.set_state(States_class.waiting_good_date)
 
-@router.message(OrderFood.waiting_good_date)
+@router.message(States_class.waiting_good_date)
 async def date(msg: Message, state: FSMContext):
     date = msg.text
     new_data = normalizerd_date({'date': date})
@@ -234,24 +274,24 @@ async def date(msg: Message, state: FSMContext):
         await msg.bot.delete_message(chat_id=msg.chat.id, message_id=msg.message_id - 2)
         await msg.bot.delete_message(chat_id=msg.chat.id, message_id=msg.message_id)
         await msg.answer(f'Ваше отделение: {user_data["otdelenie"]}\nВаш врач: {user_data["doctor"][1]}\nКабинет: {user_data["doctor"][-1]}\n\nВаше ФИО: {user_data["name"]}\nВаша дата рождения: {date} ({new_data["year"]})\n\nВрач принимает {user_data["doctor"][2]}, выберите доступное окно', reply_markup=InlineKeyboardMarkup(inline_keyboard=kb))
-        await state.set_state(OrderFood.waiting_date)
+        await state.set_state(States_class.waiting_date)
 
     else:
         await state.clear()
         await msg.bot.delete_message(chat_id=msg.chat.id, message_id=msg.message_id)
-        await msg.bot.edit_message_text(chat_id=msg.chat.id, text=f'Выберите нужный пункт из меню ниже', reply_markup=START_MENU, message_id=msg.message_id - 2)
-        # await msg.edit_text(text=f'Выберите нужный пункт из меню ниже', reply_markup=START_MENU)
-        await state.set_state(OrderFood.waiting_type)
+        await msg.bot.edit_message_text(chat_id=msg.chat.id, text=f'Выберите нужный пункт из меню ниже', reply_markup=start_menu(), message_id=msg.message_id - 2)
+        # await msg.edit_text(text=f'Выберите нужный пункт из меню ниже', reply_markup=start_menu())
+        await state.set_state(States_class.waiting_type)
 
-@router.callback_query(OrderFood.waiting_date)
+@router.callback_query(States_class.waiting_date)
 async def food_size_chosen(call_data: CallbackQuery, state: FSMContext):
     await call_data.answer()
     user_data = await state.get_data()
     await state.update_data(date_a=f"{call_data.data}")
     await call_data.message.edit_text(f'Ваше отделение: {user_data["otdelenie"]}\nВаш врач: {user_data["doctor"][1]}\nКабинет: {user_data["doctor"][-1]}\n\nВаше имя: {user_data["name"]}\nВаша дата рождения: {user_data["date"]}\n\nВы будете записаны на {call_data.data}', reply_markup=CONF)
-    await state.set_state(OrderFood.waiting_confirmation)
+    await state.set_state(States_class.waiting_confirmation)
 
-@router.callback_query(OrderFood.waiting_confirmation)
+@router.callback_query(States_class.waiting_confirmation)
 async def food_sizeosen(call_data: CallbackQuery, state: FSMContext):
     if call_data.data == 'OK':
             user_data = await state.get_data()
@@ -268,14 +308,14 @@ async def food_sizeosen(call_data: CallbackQuery, state: FSMContext):
     elif call_data.data == 'menu_conf':
         await call_data.message.delete_reply_markup()
         await state.clear()
-        await call_data.message.answer(text=f'Выберите нужный пункт из меню ниже', reply_markup=START_MENU)
-        await state.set_state(OrderFood.waiting_type)
+        await call_data.message.answer(text=f'Выберите нужный пункт из меню ниже', reply_markup=start_menu())
+        await state.set_state(States_class.waiting_type)
 
     elif call_data.data == 'menu':
         await call_data.message.delete()
         await state.clear()
-        await call_data.message.answer(text=f'Выберите нужный пункт из меню ниже', reply_markup=START_MENU)
-        await state.set_state(OrderFood.waiting_type)
+        await call_data.message.answer(text=f'Выберите нужный пункт из меню ниже', reply_markup=start_menu())
+        await state.set_state(States_class.waiting_type)
 
 
 # @router.error()
@@ -315,7 +355,7 @@ async def food_sizeosen(call_data: CallbackQuery, state: FSMContext):
 #     if call_data.data.startswith('error-fixed'):
 #         await call_data.message.bot.delete_message(chat_id=int(call_data.data.split('_')[1]), message_id=int(call_data.data.split('_')[0].split('-')[-1])-1)
 #         await call_data.message.bot.send_message(chat_id=int(call_data.data.split('_')[1]), text='Пссс... Я по-секрету... Админ все починил! :)', reply_markup=EXIT)
-#         await state.set_state(OrderFood.waiting_name)
+#         await state.set_state(States_class.waiting_name)
 #         await call_data.answer()
 #
 #     elif call_data.data.startswith('delete'):

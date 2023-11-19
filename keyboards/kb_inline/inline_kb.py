@@ -1,4 +1,7 @@
+from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
 from settings.get_kb import create_kb
 
 LIST_DOCTOR_BIG = InlineKeyboardMarkup(
@@ -63,15 +66,18 @@ LIST_HOSPITAL = InlineKeyboardMarkup(
     ],
 )
 
-START_MENU = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [
+def start_menu():
+    builder = InlineKeyboardBuilder()
+    builder.row(*[
             InlineKeyboardButton(text="Запись на прием", callback_data="writing"),
             InlineKeyboardButton(text="Мои записи", callback_data="my_app"),
             InlineKeyboardButton(text="Информация о больнице", callback_data="info"),
-        ]
-    ],
-)
+            InlineKeyboardButton(text="Информация о врачах", callback_data="info_doctors"),
+        ],
+        width=1
+    )
+
+    return builder.as_markup()
 
 EXIT = InlineKeyboardMarkup(
     inline_keyboard=[
@@ -128,3 +134,20 @@ INPUT_APP = InlineKeyboardMarkup(
         ],
     ],
 )
+
+
+class Pagination(CallbackData, prefix='pag'):
+    action: str
+    page: int
+
+
+def paginator(page: int = 0):
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text='⬅️', callback_data=Pagination(action='prev', page=page).pack()),
+        InlineKeyboardButton(text='➡️', callback_data=Pagination(action='next', page=page).pack()),
+        InlineKeyboardButton(text='🚫Закрыть🚫', callback_data=Pagination(action='close', page=page).pack()),
+        width=2
+    )
+
+    return builder.as_markup()

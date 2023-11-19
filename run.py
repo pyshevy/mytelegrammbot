@@ -5,7 +5,7 @@ from database import create_db
 from loader import bot, dp
 # from handlers import router_test
 from settings.set_bot_command import set_command
-from handlers import router
+from handlers import router, router_
 
 
 async def run() -> None:
@@ -13,6 +13,7 @@ async def run() -> None:
     if not os.path.isfile('database.db'):
         await create_db()
 
+    dp.include_router(router_)
     dp.include_router(router)
 
     await set_command(bot)
