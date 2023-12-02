@@ -71,8 +71,20 @@ def start_menu():
     builder.row(*[
             InlineKeyboardButton(text="Запись на прием", callback_data="writing"),
             InlineKeyboardButton(text="Мои записи", callback_data="my_app"),
-            InlineKeyboardButton(text="Информация о больнице", callback_data="info"),
-            InlineKeyboardButton(text="Информация о врачах", callback_data="info_doctors"),
+            InlineKeyboardButton(text="Информация", callback_data="info")
+        ],
+        width=3
+    )
+
+    return builder.as_markup()
+
+
+def info():
+    builder = InlineKeyboardBuilder()
+    builder.row(*[
+            InlineKeyboardButton(text="O больнице", callback_data="info_hospital"),
+            InlineKeyboardButton(text="O врачах", callback_data="info_doctors"),
+            InlineKeyboardButton(text="Закрыть", callback_data="menu")
         ],
         width=1
     )

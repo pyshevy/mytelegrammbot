@@ -14,7 +14,7 @@ from aiogram.types import FSInputFile
 
 from config import INFO
 from keyboards.kb_inline.inline_kb import LIST_HOSPITAL, EXIT, start_menu, LIST_DOCTOR_BIG, CONF, \
-    LIST_DOCTOR_KIDS, EXIT_for_conf, ERROR_KB, INPUT_APP, paginator, Pagination
+    LIST_DOCTOR_KIDS, EXIT_for_conf, ERROR_KB, INPUT_APP, paginator, Pagination, info
 from pdfs.states import create_pdf
 from settings.get_kb import create_kb, get_kb_with_url, get_kb_appointments, get_kb_with_names
 from config import OTDELENIE_DICT, DOCTORS_DICT
@@ -33,16 +33,12 @@ infa = [
 @router.message(Command("start"))
 async def hello(message: Message, state: FSMContext):
     await message.answer(text=f'Здравствуйте, {message.from_user.full_name}! Выберите нужный пункт из меню ниже', reply_markup=start_menu())
-    # Устанавливаем пользователю состояние "выбирает название"
     await state.set_state(States_class.waiting_type)
 
 @router.callback_query(Pagination.filter(F.action.in_(['prev', 'next', 'close'])))
 async def pag_hadler(call: CallbackQuery, callback_data: Pagination, state: FSMContext):
     page_num = int(callback_data.page)
     page = page_num - 1 if page_num > 0 else 0
-    print(page_num)
-    print(page)
-    print(callback_data.action)
 
     if callback_data.action == 'next':
         page = page_num + 1 if page_num < (len(infa) - 1) else page_num
@@ -55,11 +51,7 @@ async def pag_hadler(call: CallbackQuery, callback_data: Pagination, state: FSMC
 
 
     with suppress(TelegramBadRequest):
-        photo = FSInputFile(infa[page][1])
         markup = paginator(page=page)
-        print(2, page)
-        # media = I
-        # await call.message.delete()
 
         await call.message.edit_media(
             media=InputMediaPhoto(media=FSInputFile(infa[page][1]), caption=infa[page][0]),
@@ -67,6 +59,7 @@ async def pag_hadler(call: CallbackQuery, callback_data: Pagination, state: FSMC
         )
 
     await call.answer()
+
 
 @router.callback_query(States_class.waiting_type)
 async def type_choosen(call_data: CallbackQuery, state: FSMContext):
@@ -77,9 +70,8 @@ async def type_choosen(call_data: CallbackQuery, state: FSMContext):
         await call_data.answer()
 
     elif call_data.data == 'info':
-        await call_data.message.edit_text(INFO, reply_markup=EXIT)
+        await call_data.message.edit_text('Выберите, какую информацию Вы бы хотели узнать?', reply_markup=info())
         await state.clear()
-        await state.set_state(States_class.waiting_info)
 
     elif call_data.data == 'my_app':
         kb = await get_kb_appointments(id=call_data.from_user.id)
@@ -92,7 +84,13 @@ async def type_choosen(call_data: CallbackQuery, state: FSMContext):
         else:
             await call_data.answer('Вы не записывались к нам ранее с этого аккаунта!')
 
-    elif call_data.data == 'info_doctors':
+@router.callback_query()
+async def info_doctors(call_data: CallbackQuery, state: FSMContext):
+    if call_data.data == "info_hospital":
+        await call_data.message.edit_text(INFO, reply_markup=EXIT)
+        await state.clear()
+
+    elif call_data.data == "info_doctors":
         photo = FSInputFile(infa[0][1])
 
         await call_data.message.delete()
@@ -102,9 +100,10 @@ async def type_choosen(call_data: CallbackQuery, state: FSMContext):
             reply_markup=paginator()
         )
 
-
-async def info_doctors(call_data: CallbackQuery, state: FSMContext):
-    ...
+    elif call_data.data == 'menu':
+        await state.clear()
+        await call_data.message.edit_text(text=f'Выберите нужный пункт из меню ниже', reply_markup=start_menu())
+        await state.set_state(States_class.waiting_type)
 
 
 @router.callback_query(States_class.waiting_id_app)
@@ -165,13 +164,12 @@ async def food_cho_incorrectly(call_data: CallbackQuery, state: FSMContext):
         await state.set_state(States_class.waiting_confirmation)
         os.remove(filename)
 
-@router.callback_query(States_class.waiting_info)
-async def food_cho_incorrectly(call_data: CallbackQuery, state: FSMContext):
-    print(call_data.data)
-    if call_data.data == 'menu':
-        await state.clear()
-        await call_data.message.edit_text(text=f'Выберите нужный пункт из меню ниже', reply_markup=start_menu())
-        await state.set_state(States_class.waiting_type)
+# @router.callback_query(States_class.waiting_info)
+# async def food_cho_incorrectly(call_data: CallbackQuery, state: FSMContext):
+#     if call_data.data == 'menu':
+#         await state.clear()
+#         await call_data.message.edit_text(text=f'Выберите нужный пункт из меню ниже', reply_markup=start_menu())
+#         await state.set_state(States_class.waiting_type)
 
 @router.callback_query(States_class.waiting_otdelenie)
 async def food_chosen_incorrectly(call_data: CallbackQuery, state: FSMContext):
