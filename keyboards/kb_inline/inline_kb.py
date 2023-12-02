@@ -66,6 +66,20 @@ LIST_HOSPITAL = InlineKeyboardMarkup(
     ],
 )
 
+
+def hospitals():
+    builder = InlineKeyboardBuilder()
+    builder.row(*[
+        InlineKeyboardButton(text="Взрослая поликлиника", callback_data="big"),
+        InlineKeyboardButton(text="Детская поликлиника", callback_data="kids"),
+        InlineKeyboardButton(text="⬅️Выход⬅️", callback_data="menu")
+    ],
+        width=2
+    )
+
+    return builder.as_markup()
+
+
 def start_menu():
     builder = InlineKeyboardBuilder()
     builder.row(*[

@@ -2,11 +2,11 @@ __all__ = ['router', 'router_']
 
 from aiogram import F, Router
 
-from .start import start
+from .start import router as router_
 from .test import router, info_doctors
 from settings.states import States_class
 
-router_ = Router()
+# router_ = Router()
 
 
 
